@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Todo App</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+</head>
+<body>
+    <div class="container">
+        <h1 class="mt-5">Todo List</h1>
+        <form id="todo-form" class="mb-3">
+            <div class="input-group">
+                <input type="text" id="todo-input" class="form-control" placeholder="Enter a new task" required>
+                <div class="input-group-append">
+                    <button type="submit" class="btn btn-primary">Add</button>
+                </div>
+            </div>
+        </form>
+        <ul id="todo-list" class="list-group"></ul>
+    </div>
+
+    <script>
+        document.getElementById('todo-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            const taskInput = document.getElementById('todo-input');
+            const task = taskInput.value;
+            if (task) {
+                fetch('/add', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ task: task })
+                }).then(response => response.json()).then(data => {
+                    if (data.success) {
+                        addTodoItem(data.id, task);
+                        taskInput.value = '';
+                    }
+                });
+            }
+        });
+
+        function addTodoItem(id, task) {
+            const li = document.createElement('li');
+            li.className = 'list-group-item d-flex justify-content-between align-items-center';
+            li.setAttribute('data-id', id);
+
+            const span = document.createElement('span');
+            span.textContent = task;
+
+            const editButton = document.createElement('button');
+            editButton.className = 'btn btn-sm btn-warning mr-2';
+            editButton.textContent = 'Edit';
+            editButton.onclick = function() {
+                const newTask = prompt('Edit task:', task);
+                if (newTask) {
+                    fetch(`/edit/${id}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ task: newTask })
+                    }).then(response => response.json()).then(data => {
+                        if (data.success) {
+                            span.textContent = newTask;
+                        }
+                    });
+                }
+            };
+
+            const deleteButton = document.createElement('button');
+            deleteButton.className = 'btn btn-sm btn-danger';
+            deleteButton.textContent = 'Delete';
+            deleteButton.onclick = function() {
+                fetch(`/delete/${id}`, {
+                    method: 'DELETE'
+                }).then(response => response.json()).then(data => {
+                    if (data.success) {
+                        li.remove();
+                    }
+                });
+            };
+
+            li.appendChild(span);
+            li.appendChild(editButton);
+            li.appendChild(deleteButton);
+            document.getElementById('todo-list').appendChild(li);
+        }
+
+        function loadTodos() {
+            fetch('/todos')
+                .then(response => response.json())
+                .then(data => {
+                    const todoList = document.getElementById('todo-list');
+                    todoList.innerHTML = '';
+                    data.todos.forEach(todo => {
+                        addTodoItem(todo.id, todo.task);
+                    });
+                });
+        }
+
+        window.onload = loadTodos;
+    </script>
+</body>
+</html>
