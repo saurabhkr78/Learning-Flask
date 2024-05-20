@@ -3,6 +3,14 @@
 <head>
     <title>Todo App</title>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css">
+    <style>
+        .timer {
+            margin-left: auto;
+            margin-right: 20px;
+            font-size: 1rem;
+            color: #ff0000;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -10,6 +18,7 @@
         <form id="todo-form" class="mb-3">
             <div class="input-group">
                 <input type="text" id="todo-input" class="form-control" placeholder="Enter a new task" required>
+                <input type="number" id="todo-timer" class="form-control ml-2" placeholder="Time in minutes" required>
                 <div class="input-group-append">
                     <button type="submit" class="btn btn-primary">Add</button>
                 </div>
@@ -22,30 +31,39 @@
         document.getElementById('todo-form').addEventListener('submit', function(event) {
             event.preventDefault();
             const taskInput = document.getElementById('todo-input');
+            const timerInput = document.getElementById('todo-timer');
             const task = taskInput.value;
-            if (task) {
+            const timer = parseInt(timerInput.value) * 60; // Convert minutes to seconds
+
+            if (task && timer) {
                 fetch('/add', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ task: task })
+                    body: JSON.stringify({ task: task, timer: timer })
                 }).then(response => response.json()).then(data => {
                     if (data.success) {
-                        addTodoItem(data.id, task);
+                        addTodoItem(data.id, task, timer);
                         taskInput.value = '';
+                        timerInput.value = '';
                     }
                 });
             }
         });
 
-        function addTodoItem(id, task) {
+        function addTodoItem(id, task, timer) {
             const li = document.createElement('li');
             li.className = 'list-group-item d-flex justify-content-between align-items-center';
             li.setAttribute('data-id', id);
 
             const span = document.createElement('span');
             span.textContent = task;
+
+            const timerSpan = document.createElement('span');
+            timerSpan.className = 'timer';
+            timerSpan.textContent = formatTime(timer);
+            li.appendChild(timerSpan);
 
             const editButton = document.createElement('button');
             editButton.className = 'btn btn-sm btn-warning mr-2';
@@ -84,6 +102,29 @@
             li.appendChild(editButton);
             li.appendChild(deleteButton);
             document.getElementById('todo-list').appendChild(li);
+
+            startTimer(timer, timerSpan);
+        }
+
+        function formatTime(seconds) {
+            const minutes = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${minutes}:${secs < 10 ? '0' : ''}${secs}`;
+        }
+
+        function startTimer(duration, display) {
+            let timer = duration, minutes, seconds;
+            const interval = setInterval(function() {
+                minutes = Math.floor(timer / 60);
+                seconds = timer % 60;
+
+                display.textContent = formatTime(timer);
+
+                if (--timer < 0) {
+                    clearInterval(interval);
+                    display.textContent = "Time's up!";
+                }
+            }, 1000);
         }
 
         function loadTodos() {
@@ -93,7 +134,7 @@
                     const todoList = document.getElementById('todo-list');
                     todoList.innerHTML = '';
                     data.todos.forEach(todo => {
-                        addTodoItem(todo.id, todo.task);
+                        addTodoItem(todo.id, todo.task, todo.timer);
                     });
                 });
         }
